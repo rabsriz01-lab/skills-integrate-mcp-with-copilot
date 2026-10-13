@@ -3,12 +3,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const signupContainer = document.getElementById("signup-container");
+  const loginButton = document.getElementById("login-open");
+  const logoutButton = document.getElementById("logout-button");
+  const teacherStatus = document.getElementById("teacher-status");
+  const loginDialog = document.getElementById("login-dialog");
+  const loginForm = document.getElementById("login-form");
+  const loginMessage = document.getElementById("login-message");
+  let authorizationHeader = "";
+
+  function updateTeacherUI(username) {
+    const isTeacher = Boolean(authorizationHeader);
+    signupContainer.classList.toggle("hidden", !isTeacher);
+    loginButton.classList.toggle("hidden", isTeacher);
+    logoutButton.classList.toggle("hidden", !isTeacher);
+    teacherStatus.textContent = isTeacher ? `Signed in as ${username}` : "";
+    teacherStatus.classList.toggle("hidden", !isTeacher);
+  }
+
+  function basicAuthorization(username, password) {
+    const bytes = new TextEncoder().encode(`${username}:${password}`);
+    const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+    return `Basic ${btoa(binary)}`;
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
       const response = await fetch("/activities");
       const activities = await response.json();
+
+      activitySelect.querySelectorAll("option:not(:first-child)").forEach((option) => option.remove());
 
       // Clear loading message
       activitiesList.innerHTML = "";
@@ -28,10 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <h5>Participants:</h5>
               <ul class="participants-list">
                 ${details.participants
-                  .map(
-                    (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
-                  )
+                  .map((email) => `<li><span class="participant-email">${email}</span>${authorizationHeader ? `<button class="delete-btn" data-activity="${name}" data-email="${email}" aria-label="Unregister ${email}">Remove</button>` : ""}</li>`)
                   .join("")}
               </ul>
             </div>`
@@ -80,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/unregister?email=${encodeURIComponent(email)}`,
         {
           method: "DELETE",
+          headers: { Authorization: authorizationHeader },
         }
       );
 
@@ -124,6 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
+          headers: { Authorization: authorizationHeader },
         }
       );
 
@@ -153,6 +177,40 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
     }
+  });
+
+  loginButton.addEventListener("click", () => loginDialog.showModal());
+  document.getElementById("login-cancel").addEventListener("click", () => loginDialog.close());
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = document.getElementById("teacher-username").value.trim();
+    const password = document.getElementById("teacher-password").value;
+    const candidateHeader = basicAuthorization(username, password);
+
+    try {
+      const response = await fetch("/auth/session", {
+        headers: { Authorization: candidateHeader },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || "Teacher login failed");
+
+      authorizationHeader = candidateHeader;
+      updateTeacherUI(result.username);
+      loginDialog.close();
+      loginForm.reset();
+      loginMessage.classList.add("hidden");
+      await fetchActivities();
+    } catch (error) {
+      loginMessage.textContent = error.message || "Teacher login failed";
+      loginMessage.classList.remove("hidden");
+    }
+  });
+
+  logoutButton.addEventListener("click", () => {
+    authorizationHeader = "";
+    updateTeacherUI("");
+    fetchActivities();
   });
 
   // Initialize app

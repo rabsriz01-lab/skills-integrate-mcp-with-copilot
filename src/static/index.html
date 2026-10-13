@@ -10,6 +10,17 @@
     <header>
       <h1>Mergington High School</h1>
       <h2>Extracurricular Activities</h2>
+      <div class="account-actions">
+        <span id="teacher-status" class="hidden" aria-live="polite"></span>
+        <button id="login-open" type="button" aria-label="Teacher login" title="Teacher login">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 21a8 8 0 0 1 16 0"></path>
+          </svg>
+          <span>Teacher login</span>
+        </button>
+        <button id="logout-button" class="hidden" type="button">Log out</button>
+      </div>
     </header>
 
     <main>
@@ -21,7 +32,7 @@
         </div>
       </section>
 
-      <section id="signup-container">
+      <section id="signup-container" class="hidden">
         <h3>Sign Up for an Activity</h3>
         <form id="signup-form">
           <div class="form-group">
@@ -40,6 +51,21 @@
         <div id="message" class="hidden"></div>
       </section>
     </main>
+
+    <dialog id="login-dialog" aria-labelledby="login-title">
+      <form id="login-form">
+        <h2 id="login-title">Teacher login</h2>
+        <label for="teacher-username">Username</label>
+        <input id="teacher-username" name="username" autocomplete="username" required />
+        <label for="teacher-password">Password</label>
+        <input id="teacher-password" name="password" type="password" autocomplete="current-password" required />
+        <p id="login-message" role="status" class="hidden"></p>
+        <div class="login-actions">
+          <button id="login-cancel" type="button" class="secondary-button">Cancel</button>
+          <button type="submit">Log in</button>
+        </div>
+      </form>
+    </dialog>
 
     <footer>
       <p>&copy; 2026 Mergington High School</p>

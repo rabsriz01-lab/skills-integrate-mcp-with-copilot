@@ -5,7 +5,8 @@ A super simple FastAPI application that allows students to view and sign up for 
 ## Features
 
 - View all available extracurricular activities
-- Sign up for activities
+- Publicly view activities and participant lists
+- Teacher-only signup and unregister actions
 
 ## Getting Started
 
@@ -30,7 +31,9 @@ A super simple FastAPI application that allows students to view and sign up for 
 | Method | Endpoint                                                          | Description                                                         |
 | ------ | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
 | GET    | `/activities`                                                     | Get all activities with their details and current participant count |
-| POST   | `/activities/{activity_name}/signup?email=student@mergington.edu` | Sign up for an activity                                             |
+| GET    | `/auth/session`                                                   | Verify teacher credentials                                          |
+| POST   | `/activities/{activity_name}/signup?email=student@mergington.edu` | Teacher registers a student for an activity                         |
+| DELETE | `/activities/{activity_name}/unregister?email=student@mergington.edu` | Teacher unregisters a student                                    |
 
 ## Data Model
 
@@ -48,3 +51,17 @@ The application uses a simple data model with meaningful identifiers:
    - Grade level
 
 All data is stored in memory, which means data will be reset when the server restarts.
+
+## Teacher accounts
+
+Copy `src/teachers.example.json` to `src/teachers.json` and add teacher accounts:
+
+```json
+{
+   "teachers": [
+      { "username": "teacher", "password": "choose-a-password" }
+   ]
+}
+```
+
+`src/teachers.json` is excluded from Git. Keep it private, use a strong password, and serve the application over HTTPS outside local development. Teacher login lasts only in the current browser page; signing out or reloading clears it.
