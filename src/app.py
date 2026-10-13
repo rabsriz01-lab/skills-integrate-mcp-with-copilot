@@ -5,7 +5,10 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+import json
+import secrets
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
@@ -18,6 +21,42 @@ app = FastAPI(title="Mergington High School API",
 current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
+
+security = HTTPBasic(auto_error=False)
+teachers_file = current_dir / "teachers.json"
+
+
+def require_teacher(credentials: HTTPBasicCredentials | None = Depends(security)) -> str:
+    """Validate a teacher against the local, untracked credentials file."""
+    unauthorized = HTTPException(
+        status_code=401,
+        detail="Teacher login required",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+    if credentials is None:
+        raise unauthorized
+
+    try:
+        data = json.loads(teachers_file.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Teacher accounts are not configured")
+    except (OSError, json.JSONDecodeError):
+        raise HTTPException(status_code=503, detail="Teacher credentials could not be loaded")
+
+    teachers = data.get("teachers") if isinstance(data, dict) else None
+    if not isinstance(teachers, list):
+        raise HTTPException(status_code=503, detail="Teacher credentials have an invalid format")
+
+    for teacher in teachers:
+        if not isinstance(teacher, dict):
+            continue
+        username = str(teacher.get("username", ""))
+        password = str(teacher.get("password", ""))
+        if (secrets.compare_digest(username, credentials.username)
+                and secrets.compare_digest(password, credentials.password)):
+            return username
+
+    raise unauthorized
 
 # In-memory activity database
 activities = {
@@ -88,8 +127,17 @@ def get_activities():
     return activities
 
 
+@app.get("/auth/session")
+def get_auth_session(username: str = Depends(require_teacher)):
+    return {"username": username}
+
+
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(
+    activity_name: str,
+    email: str,
+    teacher: str = Depends(require_teacher),
+):
     """Sign up a student for an activity"""
     # Validate activity exists
     if activity_name not in activities:
@@ -111,7 +159,11 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(
+    activity_name: str,
+    email: str,
+    teacher: str = Depends(require_teacher),
+):
     """Unregister a student from an activity"""
     # Validate activity exists
     if activity_name not in activities:
